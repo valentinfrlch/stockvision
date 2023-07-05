@@ -6,6 +6,7 @@
 import numpy as np
 import pandas as pd
 import torch
+import matplotlib.pyplot as plt
 from pytorch_forecasting import TimeSeriesDataSet, GroupNormalizer, Baseline
 
 
@@ -35,31 +36,30 @@ def lambda_date(dates):
         dates[i] = pd.to_datetime(str(dates[i]), format="%Y%m%d")
     return dates
 
+def visualize(data):
+    # use matplotlib to visualize the data as a line graph
+    # x-axis is the date, y-axis is the return
+    # use different colors for different stocks (UIDs)
+    plt.figure(figsize=(15, 8))
+    for uid in data["uid"].unique():
+        plt.plot(
+            data["date"][data["uid"] == uid],
+            data["rtn"][data["uid"] == uid],
+            label=uid,
+        )
+    plt.title("Returns")
+    plt.legend()
+    plt.show()
 
 
-def train(data):
-    # create dataset:
-    dataset = TimeSeriesDataSet(
-        data,
-        group_ids=["uid"],
-        target="rtn",
-        time_idx="time_idx",
-        max_encoder_length=2,
-        max_prediction_length=3,
-        time_varying_unknown_reals=["rtn"],
-        allow_missing_timesteps=True,
-        target_normalizer=None
-    )
-    
+
+def train(data):    
     max_prediction_length = 24
     max_encoder_length = 7*24
-    print("********")
-    print(dataset["time_idx"])
-    print("********")
-    training_cutoff = dataset["time_idx"].max() - max_prediction_length
+    training_cutoff = data["time_idx"].max() - max_prediction_length
     
     training = TimeSeriesDataSet(
-        dataset[lambda x: x.hours_from_start <= training_cutoff],
+        data[lambda x: x.time_idx <= training_cutoff],
         time_idx="time_idx",
         target="rtn",
         group_ids=["uid"],
@@ -77,7 +77,7 @@ def train(data):
         add_encoder_length=True,
     )
     
-    validation = TimeSeriesDataSet.from_dataset(training, dataset, predict=True, stop_randomization=True)
+    validation = TimeSeriesDataSet.from_dataset(training, data, predict=True, stop_randomization=True)
     
     # create dataloaders for  our model
     batch_size = 64 
@@ -99,4 +99,5 @@ def predict(lookback, forward):
 
 if __name__ == "__main__":
     data = preprocess()
-    train(data)
+    visualize(data)
+    # train(data)
