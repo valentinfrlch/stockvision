@@ -70,7 +70,7 @@ def train(data):
         time_varying_known_reals=["time_idx"],
         time_varying_unknown_reals=['rtn'],
         target_normalizer=GroupNormalizer(
-            groups=["uid"], transformation="softplus"
+            groups=["uid"], transformation="count"
         ),  # we normalize by group
         add_relative_time_idx=True,
         add_target_scales=True,
@@ -82,9 +82,11 @@ def train(data):
     # create dataloaders for  our model
     batch_size = 64 
     # if you have a strong GPU, feel free to increase the number of workers  
-    train_dataloader = training.to_dataloader(train=True, batch_size=batch_size, num_workers=2)
-    validation_dataloader = validation.to_dataloader(train=False, batch_size=batch_size * 10, num_workers=2)
+    train_dataloader = training.to_dataloader(train=True, batch_size=batch_size, num_workers=12)
+    validation_dataloader = validation.to_dataloader(train=False, batch_size=batch_size * 10, num_workers=12)
 
+
+    torch.set_float32_matmul_precision('medium')                                                                             # todo: set to 'high'
 
     actuals = torch.cat([y for x, (y, weight) in iter(validation_dataloader)]).to("cuda")
     baseline_predictions = Baseline().predict(validation_dataloader)
@@ -99,5 +101,4 @@ def predict(lookback, forward):
 
 if __name__ == "__main__":
     data = preprocess()
-    visualize(data)
-    # train(data)
+    train(data)
