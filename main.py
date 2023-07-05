@@ -18,6 +18,7 @@ def preprocess():
         dict(
             # convert Date to datetime
             date = lambda_date(df["Date"]),
+            time_idx = df.index,
             uid = df["UID"],
             rtn = df["Return"],
         )
@@ -31,7 +32,6 @@ def lambda_date(dates):
     # first 4 digits are the year, next 2 are the month, last 2 are the day
     for i in range(len(dates)):
         dates[i] = pd.to_datetime(str(dates[i]), format="%Y%m%d")
-        print(dates[i])
     return dates
 
 
@@ -42,7 +42,7 @@ def train(data):
         data,
         group_ids=["uid"],
         target="rtn",
-        time_idx="date",
+        time_idx="time_idx",
         max_encoder_length=2,
         max_prediction_length=3,
         time_varying_unknown_reals=["rtn"],
