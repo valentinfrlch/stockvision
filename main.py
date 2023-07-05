@@ -98,7 +98,7 @@ def train(data):
     logger = TensorBoardLogger("lightning_logs")  
 
     trainer = pl.Trainer(
-        max_epochs=45,
+        max_epochs=5,
         accelerator='gpu', 
         devices=1,
         enable_model_summary=True,
