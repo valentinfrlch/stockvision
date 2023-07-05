@@ -11,20 +11,28 @@ from pytorch_forecasting import TimeSeriesDataSet
 def preprocess():
     # load the data from .csv file
     path = "dataset/returns.csv"
-    df = pd.read_csv(path)
-    print(df.iloc[:,0])
-    """
+    # the limiter is a semicolon
+    df = pd.read_csv(path, sep=";")
+    
     data = pd.DataFrame(
         dict(
-            time_idx = df["Date"],
+            # convert Date to datetime
+            date = lambda_date(df["Date"]),
             uid = df["UID"],
             rtn = df["Return"],
         )
     )
     
     return data
-"""
-preprocess()
+
+
+def lambda_date(dates):
+    # dates is a list of 8 digit numbers
+    # first 4 digits are the year, next 2 are the month, last 2 are the day
+    for i in range(len(dates)):
+        dates[i] = pd.to_datetime(str(dates[i]), format="%Y%m%d")
+        print(dates[i])
+    return dates
 
 
 
@@ -32,13 +40,13 @@ def train(data):
     # create dataset:
     dataset = TimeSeriesDataSet(
         data,
-        group_ids=["group"],
-        target="target",
-        time_idx="time_idx",
+        group_ids=["uid"],
+        target="rtn",
+        time_idx="date",
         max_encoder_length=2,
         max_prediction_length=3,
-        time_varying_unknown_reals=["target"],
-        static_categoricals=["holidays"],
+        time_varying_unknown_reals=["rtn"],
+        allow_missing_timesteps=True,
         target_normalizer=None
     )
 
@@ -47,4 +55,14 @@ def train(data):
 
     #load the first batch
     x, y = next(iter(dataloader))
+    
+    
+    
+    
+def predict(lookback, forward):
+    pass
 
+
+if __name__ == "__main__":
+    data = preprocess()
+    train(data)
