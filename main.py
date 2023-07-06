@@ -44,15 +44,14 @@ def preprocess():
 
 def lambda_date(dates):
     # dates is a list of 8 digit numbers
-    # first 4 digits are the year, next 2 are the month, last 2 are the day
+    # Format is YYYYMMDD -> datetime object
     for i in range(len(dates)):
         dates[i] = pd.to_datetime(str(dates[i]), format="%Y%m%d")
     return dates
 
 def visualize(data):
-    # use matplotlib to visualize the data as a line graph
-    # x-axis is the date, y-axis is the return
-    # use different colors for different stocks (UIDs)
+    # use matplotlib to visualize the data, different stocks have different colors
+    
     plt.figure(figsize=(15, 8))
     for uid in data["uid"].unique():
         plt.plot(
