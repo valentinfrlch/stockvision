@@ -19,6 +19,17 @@ def preprocess():
     # the limiter is a semicolon
     df = pd.read_csv(path, sep=";")
     
+    # for the TimeSeriesDataSet, we need to align all the stocks by date
+    # we can do this with something like this:
+    df_time = pd.DataFrame({"Date": df.Date.unique()})
+    df_time.sort_values(by="Date", inplace=True)
+    df_time.reset_index(drop=True, inplace=True)
+    df_time["idx"] = list(df_time.index)
+    df = pd.merge(df, df_time, on=["Date"], how="inner")
+    
+    print(df.head(10))
+    
+    
     data = pd.DataFrame(
         dict(
             # convert Date to datetime
@@ -138,4 +149,6 @@ def predict(lookback, forward):
 
 if __name__ == "__main__":
     data = preprocess()
-    train(data)
+    visualize(data)
+    # train(data)
+    
