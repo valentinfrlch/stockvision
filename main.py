@@ -19,8 +19,7 @@ def preprocess():
     # the limiter is a semicolon
     df = pd.read_csv(path, sep=";")
     
-    # for the TimeSeriesDataSet, we need to align all the stocks by date
-    # we can do this with something like this:
+    # align all the stocks by date
     df_time = pd.DataFrame({"Date": df.Date.unique()})
     df_time.sort_values(by="Date", inplace=True)
     df_time.reset_index(drop=True, inplace=True)
