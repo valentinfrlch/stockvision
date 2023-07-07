@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor
 from lightning.pytorch.loggers import TensorBoardLogger
-from pytorch_forecasting import TimeSeriesDataSet, GroupNormalizer, Baseline, TemporalFusionTransformer, QuantileLoss
+from pytorch_forecasting import TimeSeriesDataSet, GroupNormalizer, Baseline, TemporalFusionTransformer, QuantileLoss, MAE
 
 
 def preprocess():
@@ -136,23 +136,22 @@ def train(data):
     best_model_path = trainer.checkpoint_callback.best_model_path
     print(best_model_path)
     best_tft = TemporalFusionTransformer.load_from_checkpoint(best_model_path)
+    return best_tft, validation_dataloader, 
         
      
     
     
     
-def forecast(lookback, forward, model_path):
-    # predict the future of the stocks
-    # lookback: how many days to look back
-    # forward: how many days to predict
+def forecast(lookback, forward, best_tft, validation_dataloader):
+    # predict without retraining:
+    # load the best model from the checkpoint
+    model = TemporalFusionTransformer.load_from_checkpoint("lightning_logs/lightning_logs/version_0/checkpoints/epoch=4-step=9985.ckpt")
     
-    # load the model
-    model = TemporalFusionTransformer.load_from_checkpoint(model_path)
+    
     
 
 
 if __name__ == "__main__":
     data = preprocess()
-    visualize(data)
-    # train(data)
+    train(data)
     
