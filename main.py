@@ -141,8 +141,14 @@ def train(data):
     
     
     
-def predict(lookback, forward):
-    pass
+def forecast(lookback, forward, model_path):
+    # predict the future of the stocks
+    # lookback: how many days to look back
+    # forward: how many days to predict
+    
+    # load the model
+    model = TemporalFusionTransformer.load_from_checkpoint(model_path)
+    
 
 
 if __name__ == "__main__":
