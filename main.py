@@ -19,6 +19,10 @@ def preprocess():
     # the limiter is a semicolon
     df = pd.read_csv(path, sep=";")
 
+    # filter out all UIDs that are not in whitelist
+    whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1"]
+    df = df[df["UID"].isin(whitelist)]
+
     # align all the stocks by date
     df_time = pd.DataFrame({"Date": df.Date.unique()})
     df_time.sort_values(by="Date", inplace=True)
@@ -84,6 +88,7 @@ def train(data):
         add_relative_time_idx=True,
         add_target_scales=True,
         add_encoder_length=True,
+        allow_missing_timesteps=True,
     )
 
     validation = TimeSeriesDataSet.from_dataset(
@@ -138,16 +143,16 @@ def train(data):
     return best_tft, validation_dataloader,
 
 
-def forecast(lookback, forward, data):
+def forecast(data, forward):
     # predict without retraining:
     # load the best model from the checkpoint
     model = TemporalFusionTransformer.load_from_checkpoint(
-        "lightning_logs/lightning_logs/version_0/checkpoints/epoch=4-step=9985.ckpt")
+        "lightning_logs/lightning_logs/version_2/checkpoints/tiny_model_v0.ckpt")
 
     # create a dataset with the lookback period and create a dataloader
 
     lookback_ds = TimeSeriesDataSet(
-        data[lambda x: x.time_idx >= data["time_idx"].max() - lookback],
+        data,
         time_idx="time_idx",
         target="rtn",
         group_ids=["uid"],
@@ -189,6 +194,12 @@ def forecast(lookback, forward, data):
 
 if __name__ == "__main__":
     data = preprocess()
+    # visualize(data)
     # train(data)
-    prediction = forecast(lookback=30, forward=30, data=data)
+    
+    prediction_data = data[lambda x: x.time_idx >= data["time_idx"].max() - 30]
+    # filter for one stock
+    prediction_data = prediction_data[lambda x: x.uid == "B2B4LQ-R_1"]
+    prediction = forecast(data=data, forward=30)
+    
     print(prediction)
