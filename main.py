@@ -66,7 +66,8 @@ def visualize(data):
     plt.show()
 
 
-def train(data):
+def forecast(data, lookback=30, horizon=30):
+    # TRAINING
     max_prediction_length = 30
     max_encoder_length = 90
     training_cutoff = data["time_idx"].max() - max_prediction_length
@@ -97,9 +98,9 @@ def train(data):
     # create dataloaders
     batch_size = 64
     training_dataloader = training.to_dataloader(
-        train=True, batch_size=batch_size, num_workers=12)
+        train=True, batch_size=batch_size, num_workers=6)
     validation_dataloader = validation.to_dataloader(
-        train=False, batch_size=batch_size * 10, num_workers=12)
+        train=False, batch_size=batch_size * 10, num_workers=6)
 
     torch.set_float32_matmul_precision('medium')  # todo: set to 'high'
     actuals = torch.cat(
@@ -113,7 +114,7 @@ def train(data):
     logger = TensorBoardLogger("lightning_logs")
 
     trainer = pl.Trainer(
-        max_epochs=5,
+        max_epochs=3,
         accelerator='gpu',
         devices=1,
         enable_model_summary=True,
@@ -140,66 +141,34 @@ def train(data):
 
     best_model_path = trainer.checkpoint_callback.best_model_path
     best_tft = TemporalFusionTransformer.load_from_checkpoint(best_model_path)
-    return best_tft, validation_dataloader,
 
+    # PREDICTION
+    # evaluate on training data
 
-def forecast(data, forward):
-    # predict without retraining:
-    # load the best model from the checkpoint
-    model = TemporalFusionTransformer.load_from_checkpoint(
-        "lightning_logs/lightning_logs/version_2/checkpoints/tiny_model_v0.ckpt")
+    # dataset for training
+    data[data["time_idx"] <= training_cutoff]
 
-    # create a dataset with the lookback period and create a dataloader
+    # dataset for validation
+    data[data["time_idx"] > training_cutoff]
 
-    lookback_ds = TimeSeriesDataSet(
-        data,
-        time_idx="time_idx",
-        target="rtn",
-        group_ids=["uid"],
-        min_encoder_length=forward // 2,
-        max_encoder_length=forward,
-        min_prediction_length=forward,
-        max_prediction_length=forward,
-        time_varying_known_reals=["time_idx"],
-        time_varying_unknown_reals=['rtn'],
-        target_normalizer=GroupNormalizer(
-            groups=["uid"], transformation="count"
-        ),  # we normalize by group
-        add_relative_time_idx=True,
-        add_target_scales=True,
-        add_encoder_length=True,
-        allow_missing_timesteps=True,
-    )
+    predictions = best_tft.predict(
+        validation_dataloader, return_y=True, trainer_kwargs=dict(accelerator="gpu"))
+    MAE()(predictions.output, predictions.y)
 
-    # create a dataloader
-    predict_dataloader = lookback_ds.to_dataloader(
-        train=False, batch_size=64, num_workers=12
-    )
+    raw_predictions = best_tft.predict(
+        validation_dataloader, mode="raw", return_x=True)
 
-    # predict
-    torch.set_float32_matmul_precision('medium')
-    predictions = model.predict(predict_dataloader)
-
-    # Use Tensor.cpu() to copy the tensor to host memory first.
-    predictions = predictions.cpu().numpy()
-
-    # reshape the predictions
-    predictions = predictions.reshape(-1, forward)
-
-    # convert the predictions to a dataframe
-    predictions = pd.DataFrame(predictions)
-
-    return predictions
+    # plot all predictions and the ground truth
+    for uid in data["uid"].unique():
+        fig, ax = plt.subplots(figsize=(12, 6))
+        best_tft.plot_prediction(raw_predictions.x, raw_predictions.output,
+                                 idx=idx, add_loss_to_title=QuantileLoss(), ax=ax)
+        plt.title(uid)
+        # save to file with uid as name
+        plt.savefig(f"results/{uid}.png")
 
 
 if __name__ == "__main__":
     data = preprocess()
     # visualize(data)
-    # train(data)
-    
-    prediction_data = data[lambda x: x.time_idx >= data["time_idx"].max() - 30]
-    # filter for one stock
-    prediction_data = prediction_data[lambda x: x.uid == "B2B4LQ-R_1"]
-    prediction = forecast(data=data, forward=30)
-    
-    print(prediction)
+    forecast(data)
