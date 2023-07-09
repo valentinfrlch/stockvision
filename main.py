@@ -20,7 +20,7 @@ def preprocess():
     df = pd.read_csv(path, sep=";")
 
     # filter out all UIDs that are not in whitelist
-    whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1"]
+    whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B3GKSL-R_1", "B3K1X9-R_1", "B3LCDJ-R_2"]
     df = df[df["UID"].isin(whitelist)]
 
     # align all the stocks by date
@@ -114,7 +114,7 @@ def forecast(data, lookback=30, horizon=30):
     logger = TensorBoardLogger("lightning_logs")
 
     trainer = pl.Trainer(
-        max_epochs=3,
+        max_epochs=5, # todo: MAX EPOCHS
         accelerator='gpu',
         devices=1,
         enable_model_summary=True,
@@ -160,9 +160,13 @@ def forecast(data, lookback=30, horizon=30):
 
     # plot all predictions and the ground truth
     for uid in data["uid"].unique():
+        # get index of uid
+        UIDs = data["uid"].unique()
+        # get index of uid
+        idx = list(UIDs).index(uid)
         fig, ax = plt.subplots(figsize=(12, 6))
         best_tft.plot_prediction(raw_predictions.x, raw_predictions.output,
-                                 idx=idx, add_loss_to_title=QuantileLoss(), ax=ax)
+                                 idx=idx, ax=ax)
         plt.title(uid)
         # save to file with uid as name
         plt.savefig(f"results/{uid}.png")
