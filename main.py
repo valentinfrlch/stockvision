@@ -20,7 +20,8 @@ def preprocess():
     df = pd.read_csv(path, sep=";")
 
     # filter out all UIDs that are not in whitelist
-    whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B3GKSL-R_1", "B3K1X9-R_1", "B3LCDJ-R_2"]
+    whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1",
+                 "B3GKSL-R_1", "B3K1X9-R_1", "B3LCDJ-R_2"]
     df = df[df["UID"].isin(whitelist)]
 
     # align all the stocks by date
@@ -114,7 +115,7 @@ def forecast(data, lookback=30, horizon=30):
     logger = TensorBoardLogger("lightning_logs")
 
     trainer = pl.Trainer(
-        max_epochs=5, # todo: MAX EPOCHS
+        max_epochs=5,  # todo: MAX EPOCHS
         accelerator='gpu',
         devices=1,
         enable_model_summary=True,
@@ -140,36 +141,46 @@ def forecast(data, lookback=30, horizon=30):
         val_dataloaders=validation_dataloader)
 
     best_model_path = trainer.checkpoint_callback.best_model_path
+    print("Best model path:", best_model_path)
     best_tft = TemporalFusionTransformer.load_from_checkpoint(best_model_path)
 
     # PREDICTION
     # evaluate on training data
 
-    # dataset for training
-    data[data["time_idx"] <= training_cutoff]
-
-    # dataset for validation
-    data[data["time_idx"] > training_cutoff]
-
     predictions = best_tft.predict(
         validation_dataloader, return_y=True, trainer_kwargs=dict(accelerator="gpu"))
     MAE()(predictions.output, predictions.y)
 
+    print("average p50 loss overall:")
+    print((actuals - predictions).abs().mean().item())
+    print("average p50 loss per time series:")
+    print((actuals - predictions).abs().mean(axis=1))
+
+    # todo: remove Debugging code
     raw_predictions = best_tft.predict(
         validation_dataloader, mode="raw", return_x=True)
+    print("Raw Prediction Fields:")
+    print(raw_predictions._fields)
+    print('\n')
+    print(raw_predictions.output.prediction.shape)
 
-    # plot predictions and the ground truth
-    for uid in data["uid"].unique():
-        # get index of uid
-        UIDs = data["uid"].unique()
-        # get index of uid
-        idx = list(UIDs).index(uid)
-        fig, ax = plt.subplots(figsize=(12, 6))
-        best_tft.plot_prediction(raw_predictions.x, raw_predictions.output,
-                                 idx=idx, ax=ax)
-        plt.title(uid)
-        # save to file with uid as name
-        plt.savefig(f"results/{uid}.png")
+    # list of all the unique uids
+    uids = data["uid"].unique()
+    
+    for uid in uids:
+        fig, ax = plt.subplots(figsize=(10, 5))
+
+        raw_prediction= best_tft.predict(
+            training.filter(lambda x: (x.uid == uid)),
+            mode="raw",
+            return_x=True,
+        )
+        best_tft.plot_prediction(raw_prediction.x, raw_prediction.output, idx=0, ax=ax);
+        # set the title to the uid
+        ax.set_title(uid)
+        # save the figure to /results
+        fig.savefig(f"results/{uid}.png")
+        
 
 
 if __name__ == "__main__":
