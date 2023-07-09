@@ -1,5 +1,0 @@
-embeddings {
-  tensor_name: "uid:03972"
-  metadata_path: "03972/uid\\metadata.tsv"
-  tensor_path: "03972/uid\\tensors.tsv"
-}
