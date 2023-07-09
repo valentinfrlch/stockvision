@@ -20,9 +20,10 @@ def preprocess():
     df = pd.read_csv(path, sep=";")
 
     # filter out all UIDs that are not in whitelist
-    # whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1",
-    #              "B3GKSL-R_1", "B3K1X9-R_1", "B3LCDJ-R_2"]
+    # whitelist = ["B02ZTY-R_2"]
+    # "B01HWF-R_2", "B029D5-R_1", "B3GKSL-R_1", "B3K1X9-R_1", "B3LCDJ-R_2"]
     # df = df[df["UID"].isin(whitelist)]
+    
 
     # align all the stocks by date
     df_time = pd.DataFrame({"Date": df.Date.unique()})
@@ -34,7 +35,7 @@ def preprocess():
     data = pd.DataFrame(
         dict(
             # convert Date to datetime
-            date=lambda_date(df["Date"]),
+            date=df["Date"],
             time_idx=df.index,
             uid=df["UID"],
             rtn=df["Return"],
@@ -50,16 +51,17 @@ def lambda_date(dates):
     for i in range(len(dates)):
         dates[i] = pd.to_datetime(str(dates[i]), format="%Y%m%d")
     return dates
-
+    
 
 def visualize(data):
     # use matplotlib to visualize the data, different stocks have different colors
 
     plt.figure(figsize=(15, 8))
     for uid in data["uid"].unique():
+        # x axis is time_idx, y axis is rtn
         plt.plot(
-            data["date"][data["uid"] == uid],
-            data["rtn"][data["uid"] == uid],
+            data[data["uid"] == uid]["time_idx"],
+            data[data["uid"] == uid]["rtn"],
             label=uid,
         )
     plt.title("Returns")
@@ -70,7 +72,7 @@ def visualize(data):
 def forecast(data, lookback=30, horizon=30):
     # TRAINING
     max_prediction_length = 30
-    max_encoder_length = 90 # todo: experiment with 12m instead of 3m 
+    max_encoder_length = 30  # todo: experiment with 12m instead of 3m
     training_cutoff = data["time_idx"].max() - max_prediction_length
 
     training = TimeSeriesDataSet(
@@ -83,7 +85,8 @@ def forecast(data, lookback=30, horizon=30):
         min_prediction_length=1,
         max_prediction_length=max_prediction_length,
         static_categoricals=["uid"],
-        time_varying_known_reals=["time_idx"], # todo: add all features into either known or unknown
+        # todo: add all features into either known or unknown
+        time_varying_known_reals=["time_idx", "date"],
         time_varying_unknown_reals=['rtn'],
         target_normalizer=GroupNormalizer(
             groups=["uid"], transformation="count"
@@ -104,7 +107,7 @@ def forecast(data, lookback=30, horizon=30):
     validation_dataloader = validation.to_dataloader(
         train=False, batch_size=batch_size * 10, num_workers=6)
 
-    # todo: torch.set_float32_matmul_precision('medium')  # todo: set to 'high'
+    torch.set_float32_matmul_precision('high')  # todo: set to 'high'
     actuals = torch.cat(
         [y for x, (y, weight) in iter(validation_dataloader)]).to("cuda")
     baseline_predictions = Baseline().predict(validation_dataloader)
@@ -116,7 +119,7 @@ def forecast(data, lookback=30, horizon=30):
     logger = TensorBoardLogger("lightning_logs")
 
     trainer = pl.Trainer(
-        max_epochs=3,  # todo: MAX EPOCHS
+        max_epochs=2,  # todo: MAX EPOCHS
         accelerator='gpu',
         devices=1,
         enable_model_summary=True,
@@ -161,21 +164,21 @@ def forecast(data, lookback=30, horizon=30):
 
     # list of all the unique uids
     uids = data["uid"].unique()
-    
+
     for uid in uids:
         fig, ax = plt.subplots(figsize=(10, 5))
 
-        raw_prediction= best_tft.predict(
+        raw_prediction = best_tft.predict(
             training.filter(lambda x: (x.uid == uid)),
             mode="raw",
             return_x=True,
         )
-        best_tft.plot_prediction(raw_prediction.x, raw_prediction.output, idx=0, ax=ax);
+        best_tft.plot_prediction(
+            raw_prediction.x, raw_prediction.output, idx=0, ax=ax)
         # set the title to the uid
         ax.set_title(uid)
         # save the figure to /results
         fig.savefig(f"results/{uid}.png")
-        
 
 
 if __name__ == "__main__":
