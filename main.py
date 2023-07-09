@@ -151,12 +151,6 @@ def forecast(data, lookback=30, horizon=30):
         validation_dataloader, return_y=True, trainer_kwargs=dict(accelerator="gpu"))
     MAE()(predictions.output, predictions.y)
 
-    print("average p50 loss overall:")
-    print((actuals - predictions).abs().mean().item())
-    print("average p50 loss per time series:")
-    print((actuals - predictions).abs().mean(axis=1))
-
-    # todo: remove Debugging code
     raw_predictions = best_tft.predict(
         validation_dataloader, mode="raw", return_x=True)
     print("Raw Prediction Fields:")
