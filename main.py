@@ -158,7 +158,7 @@ def forecast(data, lookback=30, horizon=30):
     raw_predictions = best_tft.predict(
         validation_dataloader, mode="raw", return_x=True)
 
-    # plot all predictions and the ground truth
+    # plot predictions and the ground truth
     for uid in data["uid"].unique():
         # get index of uid
         UIDs = data["uid"].unique()
