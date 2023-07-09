@@ -20,9 +20,9 @@ def preprocess():
     df = pd.read_csv(path, sep=";")
 
     # filter out all UIDs that are not in whitelist
-    whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1",
-                 "B3GKSL-R_1", "B3K1X9-R_1", "B3LCDJ-R_2"]
-    df = df[df["UID"].isin(whitelist)]
+    # whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1",
+    #              "B3GKSL-R_1", "B3K1X9-R_1", "B3LCDJ-R_2"]
+    # df = df[df["UID"].isin(whitelist)]
 
     # align all the stocks by date
     df_time = pd.DataFrame({"Date": df.Date.unique()})
@@ -70,7 +70,7 @@ def visualize(data):
 def forecast(data, lookback=30, horizon=30):
     # TRAINING
     max_prediction_length = 30
-    max_encoder_length = 90
+    max_encoder_length = 90 # todo: experiment with 12m instead of 3m 
     training_cutoff = data["time_idx"].max() - max_prediction_length
 
     training = TimeSeriesDataSet(
@@ -82,7 +82,8 @@ def forecast(data, lookback=30, horizon=30):
         max_encoder_length=max_encoder_length,
         min_prediction_length=1,
         max_prediction_length=max_prediction_length,
-        time_varying_known_reals=["time_idx"],
+        static_categoricals=["uid"],
+        time_varying_known_reals=["time_idx"], # todo: add all features into either known or unknown
         time_varying_unknown_reals=['rtn'],
         target_normalizer=GroupNormalizer(
             groups=["uid"], transformation="count"
@@ -103,7 +104,7 @@ def forecast(data, lookback=30, horizon=30):
     validation_dataloader = validation.to_dataloader(
         train=False, batch_size=batch_size * 10, num_workers=6)
 
-    torch.set_float32_matmul_precision('medium')  # todo: set to 'high'
+    # todo: torch.set_float32_matmul_precision('medium')  # todo: set to 'high'
     actuals = torch.cat(
         [y for x, (y, weight) in iter(validation_dataloader)]).to("cuda")
     baseline_predictions = Baseline().predict(validation_dataloader)
@@ -115,7 +116,7 @@ def forecast(data, lookback=30, horizon=30):
     logger = TensorBoardLogger("lightning_logs")
 
     trainer = pl.Trainer(
-        max_epochs=5,  # todo: MAX EPOCHS
+        max_epochs=3,  # todo: MAX EPOCHS
         accelerator='gpu',
         devices=1,
         enable_model_summary=True,
