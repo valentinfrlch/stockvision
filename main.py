@@ -1,6 +1,3 @@
-# we're going to use temporal fusion transformers to predict the future of multiple time series.
-# The time series are stocks with daily returns
-
 
 # libraries:
 import numpy as np
@@ -11,6 +8,8 @@ import lightning.pytorch as pl
 from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor
 from lightning.pytorch.loggers import TensorBoardLogger
 from pytorch_forecasting import TimeSeriesDataSet, GroupNormalizer, Baseline, TemporalFusionTransformer, QuantileLoss, MAE
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def preprocess():
@@ -64,6 +63,7 @@ def visualize(data):
             data[data["uid"] == uid]["rtn"],
             label=uid,
         )
+        break
     plt.title("Returns")
     plt.legend()
     plt.show()
@@ -106,10 +106,16 @@ def forecast(data, lookback=30, horizon=30):
         train=True, batch_size=batch_size, num_workers=6)
     validation_dataloader = validation.to_dataloader(
         train=False, batch_size=batch_size * 10, num_workers=6)
+    
+    x, y = next(iter(training_dataloader))
+    print(x['encoder_target'])
+    print(x['groups'])
+    print('\n')
+    print(x['decoder_target'])
 
     torch.set_float32_matmul_precision('high')  # todo: set to 'high'
     actuals = torch.cat(
-        [y for x, (y, weight) in iter(validation_dataloader)]).to("cuda")
+        [y for x, (y, weight) in iter(validation_dataloader)]).to(device=device)
     baseline_predictions = Baseline().predict(validation_dataloader)
     (actuals - baseline_predictions).abs().mean().item()
 
