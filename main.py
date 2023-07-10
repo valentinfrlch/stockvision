@@ -30,6 +30,8 @@ def preprocess():
     df_time.reset_index(drop=True, inplace=True)
     df_time["idx"] = list(df_time.index)
     df = pd.merge(df, df_time, on=["Date"], how="inner")
+    
+    # todo: add features like weekday, month etc and add them to static_categoricals
 
     data = pd.DataFrame(
         dict(
@@ -40,6 +42,8 @@ def preprocess():
             rtn=df["Return"],
         )
     )
+    
+    print(df.head(10))
 
     return data
 
@@ -71,9 +75,11 @@ def visualize(data):
 
 def forecast(data, lookback=30, horizon=30):
     # TRAINING
+    # look back one month and predict the next month
     max_prediction_length = 30
-    max_encoder_length = 30  # todo: experiment with 12m instead of 3m
+    max_encoder_length = 30
     training_cutoff = data["time_idx"].max() - max_prediction_length
+    print("Training cutoff:", training_cutoff, "\n")
 
     training = TimeSeriesDataSet(
         data[lambda x: x.time_idx <= training_cutoff],
@@ -85,7 +91,6 @@ def forecast(data, lookback=30, horizon=30):
         min_prediction_length=1,
         max_prediction_length=max_prediction_length,
         static_categoricals=["uid"],
-        # todo: add all features into either known or unknown
         time_varying_known_reals=["time_idx", "date"],
         time_varying_unknown_reals=['rtn'],
         target_normalizer=GroupNormalizer(
