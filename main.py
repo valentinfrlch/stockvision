@@ -67,7 +67,7 @@ def visualize(data):
             data[data["uid"] == uid]["rtn"],
             label=uid,
         )
-        break
+        # break # plot only the first chart
     plt.title("Returns")
     plt.legend()
     plt.show()
@@ -194,5 +194,5 @@ def forecast(data, lookback=30, horizon=30):
 
 if __name__ == "__main__":
     data = preprocess()
-    # visualize(data)
-    forecast(data)
+    visualize(data)
+    # forecast(data)
