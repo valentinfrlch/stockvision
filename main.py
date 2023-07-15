@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor
 from lightning.pytorch.loggers import TensorBoardLogger
-from pytorch_forecasting import TimeSeriesDataSet, GroupNormalizer, Baseline, TemporalFusionTransformer, QuantileLoss, MAE
+from pytorch_forecasting import TimeSeriesDataSet, GroupNormalizer, Baseline, TemporalFusionTransformer, QuantileLoss, MAE, NaNLabelEncoder
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -19,8 +19,8 @@ def preprocess():
     df = pd.read_csv(path, sep=";")
 
     # filter out all UIDs that are not in whitelist
-    whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
-    df = df[df["uid"].isin(whitelist)]
+    # whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
+    # df = df[df["uid"].isin(whitelist)]
     
 
     # align all the stocks by date
@@ -30,13 +30,18 @@ def preprocess():
     df_time["idx"] = list(df_time.index)
     df = pd.merge(df, df_time, on=["date8"], how="inner")
     
+    # make sure numbers are interpreted as numbers
+    df["tr"] = pd.to_numeric(df["tr"], errors="coerce")
+    df["date8"] = pd.to_numeric(df["date8"], errors="coerce")
+    df["idx"] = pd.to_numeric(df["idx"], errors="coerce")
+    
     # todo: add features like weekday, month etc and add them to static_categoricals
 
     data = pd.DataFrame(
         dict(
             # convert Date to datetime
             date=df["date8"],
-            time_idx=df.index,
+            time_idx=df["idx"],
             uid=df["uid"],
             tr=df["tr"],
         )
@@ -95,6 +100,9 @@ def forecast(data, lookback=30, horizon=30):
         target_normalizer=GroupNormalizer(
             groups=["uid"], transformation="count"
         ),  # we normalize by group
+        categorical_encoders={
+            "uid": NaNLabelEncoder(add_nan=True)  # special encoder for categorical target
+        },
         add_relative_time_idx=True,
         add_target_scales=True,
         add_encoder_length=True,
@@ -128,12 +136,12 @@ def forecast(data, lookback=30, horizon=30):
     (actuals - baseline_predictions).abs().mean().item()
 
     early_stop_callback = EarlyStopping(
-        monitor="val_loss", min_delta=1e-4, patience=5, verbose=True, mode="min")
+        monitor="val_loss", min_delta=1e-4, patience=2, verbose=True, mode="min")
     lr_logger = LearningRateMonitor()
     logger = TensorBoardLogger("lightning_logs")
 
     trainer = pl.Trainer(
-        max_epochs=5,  # todo: MAX EPOCHS
+        max_epochs=6,  # todo: MAX EPOCHS
         accelerator='gpu',
         devices=1,
         enable_model_summary=True,
@@ -192,10 +200,10 @@ def forecast(data, lookback=30, horizon=30):
         # set the title to the uid
         ax.set_title(uid)
         # save the figure to /results
-        fig.savefig(f"results/{uid}.png")
+        fig.savefig(f"results/prediction_{uid}.png")
 
 
 if __name__ == "__main__":
     data = preprocess()
-    visualize(data)
-    # forecast(data)
+    # visualize(data)
+    forecast(data)
