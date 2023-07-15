@@ -14,18 +14,17 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def preprocess():
     # load the data from .csv file
-    path = "dataset/returns.csv"
+    path = "dataset/returns_200.csv"
     # the limiter is a semicolon
     df = pd.read_csv(path, sep=";")
 
     # filter out all UIDs that are not in whitelist
-    # whitelist = ["B02ZTY-R_2"]
-    # "B01HWF-R_2", "B029D5-R_1", "B3GKSL-R_1", "B3K1X9-R_1", "B3LCDJ-R_2"]
-    # df = df[df["UID"].isin(whitelist)]
+    whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
+    df = df[df["uid"].isin(whitelist)]
     
 
     # align all the stocks by date
-    df_time = pd.DataFrame({"date8": df.Date.unique()})
+    df_time = pd.DataFrame({"date8": df.date8.unique()})
     df_time.sort_values(by="date8", inplace=True)
     df_time.reset_index(drop=True, inplace=True)
     df_time["idx"] = list(df_time.index)
@@ -39,7 +38,7 @@ def preprocess():
             date=df["date8"],
             time_idx=df.index,
             uid=df["uid"],
-            rtn=df["tr"],
+            tr=df["tr"],
         )
     )
     
@@ -59,18 +58,18 @@ def lambda_date(dates):
 def visualize(data):
     # use matplotlib to visualize the data, different stocks have different colors
 
-    plt.figure(figsize=(15, 8))
     for uid in data["uid"].unique():
+        plt.figure(figsize=(15, 8))
         # x axis is time_idx, y axis is rtn
         plt.plot(
             data[data["uid"] == uid]["time_idx"],
-            data[data["uid"] == uid]["rtn"],
+            data[data["uid"] == uid]["tr"],
             label=uid,
         )
         # break # plot only the first chart
-    plt.title("Returns")
-    plt.legend()
-    plt.show()
+        plt.title("Returns {uid}")
+        # save the figure to /results
+        plt.savefig(f"results/visualize_{uid}.png")
 
 
 def forecast(data, lookback=30, horizon=30):
@@ -91,7 +90,7 @@ def forecast(data, lookback=30, horizon=30):
         min_prediction_length=1,
         max_prediction_length=max_prediction_length,
         static_categoricals=["uid"],
-        time_varying_known_reals=["time_idx", "date8"],
+        time_varying_known_reals=["time_idx", "date"],
         time_varying_unknown_reals=['tr'],
         target_normalizer=GroupNormalizer(
             groups=["uid"], transformation="count"
@@ -112,13 +111,17 @@ def forecast(data, lookback=30, horizon=30):
     validation_dataloader = validation.to_dataloader(
         train=False, batch_size=batch_size * 10, num_workers=6)
     
+    
+    #debug
+    """
     x, y = next(iter(training_dataloader))
     print(x['encoder_target'])
     print(x['groups'])
     print('\n')
     print(x['decoder_target'])
+    """
 
-    torch.set_float32_matmul_precision('high')  # todo: set to 'high'
+    torch.set_float32_matmul_precision('medium')  # todo: set to 'high'
     actuals = torch.cat(
         [y for x, (y, weight) in iter(validation_dataloader)]).to(device=device)
     baseline_predictions = Baseline().predict(validation_dataloader)
@@ -130,7 +133,7 @@ def forecast(data, lookback=30, horizon=30):
     logger = TensorBoardLogger("lightning_logs")
 
     trainer = pl.Trainer(
-        max_epochs=2,  # todo: MAX EPOCHS
+        max_epochs=5,  # todo: MAX EPOCHS
         accelerator='gpu',
         devices=1,
         enable_model_summary=True,
