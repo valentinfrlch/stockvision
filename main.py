@@ -25,21 +25,21 @@ def preprocess():
     
 
     # align all the stocks by date
-    df_time = pd.DataFrame({"Date": df.Date.unique()})
-    df_time.sort_values(by="Date", inplace=True)
+    df_time = pd.DataFrame({"date8": df.Date.unique()})
+    df_time.sort_values(by="date8", inplace=True)
     df_time.reset_index(drop=True, inplace=True)
     df_time["idx"] = list(df_time.index)
-    df = pd.merge(df, df_time, on=["Date"], how="inner")
+    df = pd.merge(df, df_time, on=["date8"], how="inner")
     
     # todo: add features like weekday, month etc and add them to static_categoricals
 
     data = pd.DataFrame(
         dict(
             # convert Date to datetime
-            date=df["Date"],
+            date=df["date8"],
             time_idx=df.index,
-            uid=df["UID"],
-            rtn=df["Return"],
+            uid=df["uid"],
+            rtn=df["tr"],
         )
     )
     
@@ -84,15 +84,15 @@ def forecast(data, lookback=30, horizon=30):
     training = TimeSeriesDataSet(
         data[lambda x: x.time_idx <= training_cutoff],
         time_idx="time_idx",
-        target="rtn",
+        target="tr",
         group_ids=["uid"],
         min_encoder_length=max_encoder_length // 2,
         max_encoder_length=max_encoder_length,
         min_prediction_length=1,
         max_prediction_length=max_prediction_length,
         static_categoricals=["uid"],
-        time_varying_known_reals=["time_idx", "date"],
-        time_varying_unknown_reals=['rtn'],
+        time_varying_known_reals=["time_idx", "date8"],
+        time_varying_unknown_reals=['tr'],
         target_normalizer=GroupNormalizer(
             groups=["uid"], transformation="count"
         ),  # we normalize by group
