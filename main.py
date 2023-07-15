@@ -19,8 +19,8 @@ def preprocess():
     df = pd.read_csv(path, sep=";")
 
     # filter out all UIDs that are not in whitelist
-    # whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
-    # df = df[df["uid"].isin(whitelist)]
+    whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
+    df = df[df["uid"].isin(whitelist)]
     
 
     # align all the stocks by date
@@ -81,7 +81,7 @@ def forecast(data, lookback=30, horizon=30):
     # TRAINING
     # look back one month and predict the next month
     max_prediction_length = 30
-    max_encoder_length = 30
+    max_encoder_length = 30 * 12 # 12 months
     training_cutoff = data["time_idx"].max() - max_prediction_length
     print("Training cutoff:", training_cutoff, "\n")
 
@@ -141,7 +141,7 @@ def forecast(data, lookback=30, horizon=30):
     logger = TensorBoardLogger("lightning_logs")
 
     trainer = pl.Trainer(
-        max_epochs=6,  # todo: MAX EPOCHS
+        max_epochs=4,  # todo: MAX EPOCHS
         accelerator='gpu',
         devices=1,
         enable_model_summary=True,
