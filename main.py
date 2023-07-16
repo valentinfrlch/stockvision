@@ -19,8 +19,8 @@ def preprocess():
     df = pd.read_csv(path, sep=";")
 
     # filter out all UIDs that are not in whitelist
-    whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
-    df = df[df["uid"].isin(whitelist)]
+    # whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
+    # df = df[df["uid"].isin(whitelist)]
     
 
     # align all the stocks by date
@@ -115,9 +115,9 @@ def forecast(data, lookback=30, horizon=30):
     # create dataloaders
     batch_size = 64
     training_dataloader = training.to_dataloader(
-        train=True, batch_size=batch_size, num_workers=6)
+        train=True, batch_size=batch_size, num_workers=12)
     validation_dataloader = validation.to_dataloader(
-        train=False, batch_size=batch_size * 10, num_workers=6)
+        train=False, batch_size=batch_size * 10, num_workers=12)
     
     
     #debug
@@ -141,7 +141,7 @@ def forecast(data, lookback=30, horizon=30):
     logger = TensorBoardLogger("lightning_logs")
 
     trainer = pl.Trainer(
-        max_epochs=4,  # todo: MAX EPOCHS
+        max_epochs=20,
         accelerator='gpu',
         devices=1,
         enable_model_summary=True,
