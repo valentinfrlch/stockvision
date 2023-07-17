@@ -92,7 +92,7 @@ def forecast(data, lookback=30, horizon=30):
         group_ids=["uid"],
         min_encoder_length=max_encoder_length // 2,
         max_encoder_length=max_encoder_length,
-        min_prediction_length=1,
+        min_prediction_length=max_prediction_length,
         max_prediction_length=max_prediction_length,
         static_categoricals=["uid"],
         time_varying_known_reals=["time_idx", "date"],
@@ -173,16 +173,25 @@ def forecast(data, lookback=30, horizon=30):
     # PREDICTION
     # evaluate on training data
 
-    predictions = best_tft.predict(
-        validation_dataloader, return_y=True, trainer_kwargs=dict(accelerator="gpu"))
-    MAE()(predictions.output, predictions.y)
+    # predictions = best_tft.predict(
+    #     validation_dataloader, return_y=True, trainer_kwargs=dict(accelerator="gpu"))
+    # MAE()(predictions.output, predictions.y)
 
-    raw_predictions = best_tft.predict(
-        validation_dataloader, mode="raw", return_x=True)
+    # raw_predictions = best_tft.predict(
+    #     validation_dataloader, mode="raw", return_x=True)
+    
+    
+    predictions = best_tft.predict(training_dataloader, return_x=True)
+    predictions_vs_actuals = best_tft.calculate_prediction_actual_by_variable(predictions.x, predictions.output)
+    best_tft.plot_prediction_actual_by_variable(predictions_vs_actuals)
+    
+    """
+    DEBUGGING
     print("Raw Prediction Fields:")
     print(raw_predictions._fields)
     print('\n')
     print(raw_predictions.output.prediction.shape)
+    """
 
     # list of all the unique uids
     uids = data["uid"].unique()
