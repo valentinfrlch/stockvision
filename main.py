@@ -95,7 +95,7 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
         time_varying_known_reals=["time_idx", "date"],
         time_varying_unknown_reals=['tr'],
         target_normalizer=GroupNormalizer(
-            groups=["uid"], transformation="count"
+            groups=["uid"], transformation="count" # todo: test with "softplus", *OR WITHOUT NORMALIZER*
         ),  # we normalize by group
         categorical_encoders={
             "uid": NaNLabelEncoder(add_nan=True)  # special encoder for categorical target
