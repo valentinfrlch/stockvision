@@ -77,11 +77,8 @@ def visualize(data):
         plt.savefig(f"results/visualize_{uid}.png")
 
 
-def forecast(data, lookback=30, horizon=30):
+def forecast(data, max_encoder_length=365, max_prediction_length=30):
     # TRAINING
-    # look back one month and predict the next month
-    max_prediction_length = 30
-    max_encoder_length = 30 * 12 # 12 months
     training_cutoff = data["time_idx"].max() - max_prediction_length
     print("Training cutoff:", training_cutoff, "\n")
 
