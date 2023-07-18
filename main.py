@@ -19,9 +19,6 @@ def preprocess():
     df = pd.read_csv(path, sep=";")
     df["weekday"] = pd.to_datetime(df["date8"], format="%Y%m%d").dt.weekday
     df["month"] = pd.to_datetime(df["date8"], format="%Y%m%d").dt.month
-    
-    # calculate closing price of the day -> take previous day's closing price and add the return (tr)
-    # to simplify we assume all stocks start at 100
     df["close"] = 1 + df.groupby("uid")["tr"].cumsum()
 
     # filter out all UIDs that are not in whitelist
@@ -142,7 +139,7 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
     (actuals - baseline_predictions).abs().mean().item()
 
     early_stop_callback = EarlyStopping(
-        monitor="val_loss", min_delta=1e-4, patience=2, verbose=True, mode="min")
+        monitor="val_loss", min_delta=1e-3, patience=1, verbose=True, mode="min")
     lr_logger = LearningRateMonitor()
     logger = TensorBoardLogger("lightning_logs")
 
@@ -220,5 +217,5 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
 
 if __name__ == "__main__":
     data = preprocess()
-    visualize(data)
-    # forecast(data)
+    # visualize(data)
+    forecast(data)
