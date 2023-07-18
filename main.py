@@ -19,6 +19,10 @@ def preprocess():
     df = pd.read_csv(path, sep=";")
     df["weekday"] = pd.to_datetime(df["date8"], format="%Y%m%d").dt.weekday
     df["month"] = pd.to_datetime(df["date8"], format="%Y%m%d").dt.month
+    
+    # calculate closing price of the day -> take previous day's closing price and add the return (tr)
+    # to simplify we assume all stocks start at 100
+    df["close"] = 100 + df.groupby("uid")["tr"].cumsum()
 
     # filter out all UIDs that are not in whitelist
     # whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
@@ -48,6 +52,7 @@ def preprocess():
             month = df["month"],
             uid=df["uid"],
             tr=df["tr"],
+            close=df["close"],
         )
     )
     
@@ -97,7 +102,7 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
         max_prediction_length=max_prediction_length,
         static_categoricals=["uid"],
         time_varying_known_reals=["time_idx", "date", "month", "weekday"],
-        time_varying_unknown_reals=['tr'],
+        time_varying_unknown_reals=['tr', "close"],
         target_normalizer=GroupNormalizer(
             groups=["uid"], transformation="count"
         ),  # we normalize by group
