@@ -93,13 +93,13 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
         group_ids=["uid"],
         min_encoder_length=max_encoder_length // 2,
         max_encoder_length=max_encoder_length,
-        min_prediction_length=max_prediction_length,
+        min_prediction_length=1,
         max_prediction_length=max_prediction_length,
         static_categoricals=["uid"],
         time_varying_known_reals=["time_idx", "date", "month", "weekday"],
         time_varying_unknown_reals=['tr'],
         target_normalizer=GroupNormalizer(
-            groups=["uid"], transformation="count" # todo: test with "softplus", *OR WITHOUT NORMALIZER*
+            groups=["uid"], transformation="count"
         ),  # we normalize by group
         categorical_encoders={
             "uid": NaNLabelEncoder(add_nan=True)  # special encoder for categorical target
