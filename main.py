@@ -17,6 +17,8 @@ def preprocess():
     path = "dataset/returns_200.csv"
     # the limiter is a semicolon
     df = pd.read_csv(path, sep=";")
+    df["weekday"] = pd.to_datetime(df["date8"], format="%Y%m%d").dt.weekday
+    df["month"] = pd.to_datetime(df["date8"], format="%Y%m%d").dt.month
 
     # filter out all UIDs that are not in whitelist
     # whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
@@ -42,6 +44,8 @@ def preprocess():
             # convert Date to datetime
             date=df["date8"],
             time_idx=df["idx"],
+            weekday=df["weekday"],
+            month = df["month"],
             uid=df["uid"],
             tr=df["tr"],
         )
@@ -92,7 +96,7 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
         min_prediction_length=max_prediction_length,
         max_prediction_length=max_prediction_length,
         static_categoricals=["uid"],
-        time_varying_known_reals=["time_idx", "date"],
+        time_varying_known_reals=["time_idx", "date", "month", "weekday"],
         time_varying_unknown_reals=['tr'],
         target_normalizer=GroupNormalizer(
             groups=["uid"], transformation="count" # todo: test with "softplus", *OR WITHOUT NORMALIZER*
@@ -139,7 +143,7 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
 
     trainer = pl.Trainer(
         max_epochs=20,
-        accelerator='gpu',
+        accelerator=device,
         devices=1,
         enable_model_summary=True,
         gradient_clip_val=0.1,
@@ -171,7 +175,7 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
     # evaluate on training data
 
     # predictions = best_tft.predict(
-    #     validation_dataloader, return_y=True, trainer_kwargs=dict(accelerator="gpu"))
+    #     validation_dataloader, return_y=True, trainer_kwargs=dict(accelerator=device))
     # MAE()(predictions.output, predictions.y)
 
     # raw_predictions = best_tft.predict(
