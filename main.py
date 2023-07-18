@@ -22,7 +22,7 @@ def preprocess():
     
     # calculate closing price of the day -> take previous day's closing price and add the return (tr)
     # to simplify we assume all stocks start at 100
-    df["close"] = 100 + df.groupby("uid")["tr"].cumsum()
+    df["close"] = 1 + df.groupby("uid")["tr"].cumsum()
 
     # filter out all UIDs that are not in whitelist
     # whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
@@ -71,19 +71,19 @@ def lambda_date(dates):
 
 def visualize(data):
     # use matplotlib to visualize the data, different stocks have different colors
-
+    plt.figure(figsize=(15, 8))
     for uid in data["uid"].unique():
-        plt.figure(figsize=(15, 8))
         # x axis is time_idx, y axis is rtn
         plt.plot(
             data[data["uid"] == uid]["time_idx"],
-            data[data["uid"] == uid]["tr"],
+            # data[data["uid"] == uid]["tr"],
+            data[data["uid"] == uid]["close"],
             label=uid,
         )
-        # break # plot only the first chart
-        plt.title("Returns {uid}")
-        # save the figure to /results
-        plt.savefig(f"results/visualize_{uid}.png")
+    # break # plot only the first chart
+    plt.title("Returns {uid}")
+    # save the figure to /results
+    plt.savefig(f"results/visualize_{uid}.png")
 
 
 def forecast(data, max_encoder_length=365, max_prediction_length=30):
@@ -220,5 +220,5 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
 
 if __name__ == "__main__":
     data = preprocess()
-    # visualize(data)
-    forecast(data)
+    visualize(data)
+    # forecast(data)
