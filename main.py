@@ -3,13 +3,23 @@
 import numpy as np
 import pandas as pd
 import torch
+import torch.backends
 import matplotlib.pyplot as plt
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor
 from lightning.pytorch.loggers import TensorBoardLogger
 from pytorch_forecasting import TimeSeriesDataSet, GroupNormalizer, Baseline, TemporalFusionTransformer, QuantileLoss, MAE, NaNLabelEncoder
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+# use mps if it's present, otherwise try cuda, otherwise use cpu
+
+if torch.backends.mps.is_available():
+    device = "mps"
+elif torch.cuda.is_available():
+    device = "cuda"
+else:
+    device = "cpu"
+    
+print("Using device:", device)
 
 
 def preprocess():
@@ -22,8 +32,8 @@ def preprocess():
     df["close"] = 1 + df.groupby("uid")["tr"].cumsum()
 
     # filter out all UIDs that are not in whitelist
-    # whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
-    # df = df[df["uid"].isin(whitelist)]
+    whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
+    df = df[df["uid"].isin(whitelist)]
     
 
     # align all the stocks by date
