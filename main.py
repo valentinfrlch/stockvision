@@ -18,8 +18,6 @@ elif torch.cuda.is_available():
     device = "cuda"
 else:
     device = "cpu"
-    
-print("Using device:", device)
 
 
 def preprocess():
