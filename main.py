@@ -14,8 +14,10 @@ from pytorch_forecasting import TimeSeriesDataSet, GroupNormalizer, Baseline, Te
 
 if torch.backends.mps.is_available():
     device = "mps"
+    workers = 8
 elif torch.cuda.is_available():
     device = "cuda"
+    workers = 12
 else:
     device = "cpu"
 
@@ -126,9 +128,9 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
     # create dataloaders
     batch_size = 64
     training_dataloader = training.to_dataloader(
-        train=True, batch_size=batch_size, num_workers=12)
+        train=True, batch_size=batch_size, num_workers=workers)
     validation_dataloader = validation.to_dataloader(
-        train=False, batch_size=batch_size * 10, num_workers=12)
+        train=False, batch_size=batch_size * 10, num_workers=workers)
     
     
     #debug
