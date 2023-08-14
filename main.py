@@ -6,6 +6,7 @@ import torch
 import torch.backends
 import matplotlib.pyplot as plt
 import lightning.pytorch as pl
+import seaborn as sns
 from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor
 from lightning.pytorch.loggers import TensorBoardLogger
 from pytorch_forecasting import TimeSeriesDataSet, GroupNormalizer, Baseline, TemporalFusionTransformer, QuantileLoss, MAE, NaNLabelEncoder
@@ -22,17 +23,21 @@ else:
 
 def preprocess():
     # load the data from .csv file
-    path = "dataset/returns_200.csv"
+    path = "dataset/test_data.csv"
     # the limiter is a semicolon
+    # date8;uid;tr;rsi_14;bb_rel;stochastic_k;williams_r14;macd_hist
+
     df = pd.read_csv(path, sep=";")
-    df["weekday"] = pd.to_datetime(df["date8"], format="%Y%m%d").dt.weekday
-    df["month"] = pd.to_datetime(df["date8"], format="%Y%m%d").dt.month
     df["close"] = 1 + df.groupby("uid")["tr"].cumsum()
+    df['rsi_14'] = df.groupby('uid')['rsi_14'].fillna(method='ffill')
+    df['bb_rel'] = df.groupby('uid')['bb_rel'].fillna(method='ffill')
+    df['stochastic_k'] = df.groupby(
+        'uid')['stochastic_k'].fillna(method='ffill')
 
     # filter out all UIDs that are not in whitelist
-    whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
+    # whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
+    whitelist = ["B12BZP-R_1"]
     df = df[df["uid"].isin(whitelist)]
-    
 
     # align all the stocks by date
     df_time = pd.DataFrame({"date8": df.date8.unique()})
@@ -40,12 +45,12 @@ def preprocess():
     df_time.reset_index(drop=True, inplace=True)
     df_time["idx"] = list(df_time.index)
     df = pd.merge(df, df_time, on=["date8"], how="inner")
-    
+
     # make sure numbers are interpreted as numbers
     df["tr"] = pd.to_numeric(df["tr"], errors="coerce")
     df["date8"] = pd.to_numeric(df["date8"], errors="coerce")
     df["idx"] = pd.to_numeric(df["idx"], errors="coerce")
-    
+
     # todo: add features like weekday, month etc and add them to static_categoricals
 
     data = pd.DataFrame(
@@ -53,17 +58,18 @@ def preprocess():
             # convert Date to datetime
             date=df["date8"],
             time_idx=df["idx"],
-            weekday=df["weekday"],
-            month = df["month"],
             uid=df["uid"],
             tr=df["tr"],
             close=df["close"],
+            rsi_14=df["rsi_14"],
+            bb_rel=df["bb_rel"],
+            stochastic_k=df["stochastic_k"],
         )
     )
-    
+
     print(df.head(10))
 
-    return data
+    return data, df
 
 
 def lambda_date(dates):
@@ -72,7 +78,7 @@ def lambda_date(dates):
     for i in range(len(dates)):
         dates[i] = pd.to_datetime(str(dates[i]), format="%Y%m%d")
     return dates
-    
+
 
 def visualize(data):
     # use matplotlib to visualize the data, different stocks have different colors
@@ -80,13 +86,20 @@ def visualize(data):
     for uid in data["uid"].unique():
         # x axis is time_idx, y axis is rtn
         plt.plot(
-            data[data["uid"] == uid]["time_idx"],
-            # data[data["uid"] == uid]["tr"],
-            data[data["uid"] == uid]["close"],
+            data[data["uid"] == uid]["rsi_14"],
             label=uid,
         )
+        plt.plot(
+            data[data["uid"] == uid]["stochastic_k"],
+            label=uid,
+        )
+        plt.plot(
+            data[data["uid"] == uid]["bb_rel"],
+            label=uid,
+        )
+        plt.legend()
     # break # plot only the first chart
-    plt.title("Returns {uid}")
+    plt.title(f"Returns {uid}")
     # save the figure to /results
     plt.savefig(f"results/visualize_{uid}.png")
 
@@ -106,13 +119,15 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
         min_prediction_length=1,
         max_prediction_length=max_prediction_length,
         static_categoricals=["uid"],
-        time_varying_known_reals=["time_idx", "date", "month", "weekday"],
-        time_varying_unknown_reals=['tr', "close"],
+        time_varying_known_reals=["time_idx", "date"],
+        time_varying_unknown_reals=['tr', "close",
+                                    "rsi_14", "bb_rel", "stochastic_k"],
         target_normalizer=GroupNormalizer(
-            groups=["uid"], transformation="count"
+            groups=["uid"], transformation="softplus"
         ),  # we normalize by group
         categorical_encoders={
-            "uid": NaNLabelEncoder(add_nan=True)  # special encoder for categorical target
+            # special encoder for categorical target
+            "uid": NaNLabelEncoder(add_nan=True)
         },
         add_relative_time_idx=True,
         add_target_scales=True,
@@ -129,9 +144,8 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
         train=True, batch_size=batch_size, num_workers=12)
     validation_dataloader = validation.to_dataloader(
         train=False, batch_size=batch_size * 10, num_workers=12)
-    
-    
-    #debug
+
+    # debug
     """
     x, y = next(iter(training_dataloader))
     print(x['encoder_target'])
@@ -186,16 +200,16 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
 
     # predictions = best_tft.predict(
     #     validation_dataloader, return_y=True, trainer_kwargs=dict(accelerator=device))
-    # MAE()(predictions.output, predictions.y)
+    #  MAE()(predictions.output, predictions.y)
 
     # raw_predictions = best_tft.predict(
-    #     validation_dataloader, mode="raw", return_x=True)
-    
-    
+    #      validation_dataloader, mode="raw", return_x=True)
+
     predictions = best_tft.predict(training_dataloader, return_x=True)
-    predictions_vs_actuals = best_tft.calculate_prediction_actual_by_variable(predictions.x, predictions.output)
+    predictions_vs_actuals = best_tft.calculate_prediction_actual_by_variable(
+        predictions.x, predictions.output)
     best_tft.plot_prediction_actual_by_variable(predictions_vs_actuals)
-    
+
     """
     DEBUGGING
     print("Raw Prediction Fields:")
@@ -223,7 +237,21 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
         fig.savefig(f"results/prediction_{uid}.png")
 
 
+def feature_correleation(data, target):
+    # calculate the correlation matrix
+    # filter out the uid column
+    data = data.drop(columns=["uid"])
+    corr = data.corr()
+    # plot only correlation with target
+    corr = corr[[target]]
+    mask = np.triu(np.ones_like(corr, dtype=bool))
+    plt.figure(figsize=(25, 20))
+    sns.heatmap(corr, mask=mask, annot=True, cmap="coolwarm")
+    plt.savefig("results/correlation_matrix.png")
+
+
 if __name__ == "__main__":
-    data = preprocess()
-    # visualize(data)
-    forecast(data)
+    data, df = preprocess()
+    visualize(data)
+    # feature_correleation(df, 'tr')
+    # forecast(data)
