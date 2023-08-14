@@ -36,10 +36,11 @@ def preprocess():
     df['stochastic_k'] = df.groupby(
         'uid')['stochastic_k'].fillna(method='ffill')
 
+    # DEBUGGING------------------------------------
     # filter out all UIDs that are not in whitelist
     # whitelist = ["B018KB-R_1", "B01HWF-R_2", "B029D5-R_1", "B0TXKG-R_1", "B16HJ6-R_1", "B18RVB-R_1"]
-    whitelist = ["B12BZP-R_1"]
-    df = df[df["uid"].isin(whitelist)]
+    # whitelist = ["B12BZP-R_1"]
+    # df = df[df["uid"].isin(whitelist)]
 
     # align all the stocks by date
     df_time = pd.DataFrame({"date8": df.date8.unique()})
@@ -53,7 +54,6 @@ def preprocess():
     df["date8"] = pd.to_numeric(df["date8"], errors="coerce")
     df["idx"] = pd.to_numeric(df["idx"], errors="coerce")
 
-    # todo: add features like weekday, month etc and add them to static_categoricals
 
     data = pd.DataFrame(
         dict(
@@ -86,19 +86,24 @@ def visualize(data):
     # use matplotlib to visualize the data, different stocks have different colors
     plt.figure(figsize=(15, 8))
     for uid in data["uid"].unique():
-        # x axis is time_idx, y axis is rtn
+        plt.plot(
+            data[data["uid"] == uid]["tr"],
+            label="tr",
+        )
+        """
         plt.plot(
             data[data["uid"] == uid]["rsi_14"],
-            label=uid,
+            label="rsi_14",
         )
         plt.plot(
             data[data["uid"] == uid]["stochastic_k"],
-            label=uid,
+            label="stochastic_k",
         )
         plt.plot(
             data[data["uid"] == uid]["bb_rel"],
-            label=uid,
+            label="bb_rel",
         )
+        """
         plt.legend()
     # break # plot only the first chart
     plt.title(f"Returns {uid}")
@@ -125,7 +130,7 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
         time_varying_unknown_reals=['tr', "close",
                                     "rsi_14", "bb_rel", "stochastic_k"],
         target_normalizer=GroupNormalizer(
-            groups=["uid"], transformation="softplus"
+            groups=["uid"], transformation="count"
         ),  # we normalize by group
         categorical_encoders={
             # special encoder for categorical target
@@ -245,7 +250,7 @@ def feature_correleation(data, target):
     data = data.drop(columns=["uid"])
     corr = data.corr()
     # plot only correlation with target
-    corr = corr[[target]]
+    # corr = corr[[target]]
     mask = np.triu(np.ones_like(corr, dtype=bool))
     plt.figure(figsize=(25, 20))
     sns.heatmap(corr, mask=mask, annot=True, cmap="coolwarm")
@@ -254,6 +259,6 @@ def feature_correleation(data, target):
 
 if __name__ == "__main__":
     data, df = preprocess()
-    visualize(data)
-    # feature_correleation(df, 'tr')
+    # visualize(data)
+    feature_correleation(df, 'tr')
     # forecast(data)
