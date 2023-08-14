@@ -3,4 +3,5 @@ pandas
 numpy
 pytorch-forecasting
 matplotlib
+pytorch-lightning
 seaborn
