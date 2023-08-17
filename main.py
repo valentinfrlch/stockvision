@@ -53,6 +53,9 @@ def preprocess():
     df["tr"] = pd.to_numeric(df["tr"], errors="coerce")
     df["date8"] = pd.to_numeric(df["date8"], errors="coerce")
     df["idx"] = pd.to_numeric(df["idx"], errors="coerce")
+    
+    # calculate tr in percentages
+    df["tr"] = df["tr"] * 100
 
 
     data = pd.DataFrame(
@@ -130,7 +133,7 @@ def forecast(data, max_encoder_length=365, max_prediction_length=30):
         time_varying_unknown_reals=['tr', "close",
                                     "rsi_14", "bb_rel", "stochastic_k"],
         target_normalizer=GroupNormalizer(
-            groups=["uid"], transformation="count"
+            groups=["uid"], transformation="softplus"
         ),  # we normalize by group
         categorical_encoders={
             # special encoder for categorical target
@@ -260,5 +263,5 @@ def feature_correleation(data, target):
 if __name__ == "__main__":
     data, df = preprocess()
     # visualize(data)
-    feature_correleation(df, 'tr')
-    # forecast(data)
+    # feature_correleation(df, 'tr')
+    forecast(data)
